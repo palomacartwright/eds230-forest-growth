@@ -8,8 +8,8 @@
 #'
 #' @examples
 compute_metrics <- function(result) {
-  maxsize = max(result$P)
-  idx = which.max(result$P)
-  maxyear = result$time[idx]
+  maxsize = max(result$forest_size)
+  idx = which.max(result$forest_size)
+  maxyear = result$year[idx]
   return(list(maxsize = maxsize, maxyear = maxyear))
 }
