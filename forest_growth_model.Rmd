@@ -1,0 +1,152 @@
+---
+title: "Forest Growth Modeling"
+author:
+- Paloma Cartwright
+- Joe DeCesaro
+- Connor Flynn
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sensitivity)
+library(tidyverse)
+library(deSolve)
+library(here)
+```
+
+Consider the following model of forest growth (where forest size in measured in units of carbon (C))
+
+**dC/dt = r\*C** for forests where C is below a threshold canopy closure
+
+**dC/dt = g\*(1- C/K)** for forests where carbon is at or above the threshold canopy closure
+
+**K** is a carrying capacity in units of carbon
+
+The initial size of the forest, **C**, canopy closure threshold, **threshold**, and carrying capacity, **K**, are all in units of kgC. You could think of the canopy closure threshold as the size of the forest at which growth rates change from exponential to linear. You can think of **r**, as early exponential growth rate and **g** as the linear growth rate once canopy closure has been reached
+
+# 1. Implement the model in R
+
+```{r}
+source(here("R", "forest_growth.R"))
+forest_growth
+```
+
+# 2. Run the model for 300 years
+
+-   Start with an initial forest size of 10kgC
+-   Parameters:
+    -   Canopy Closure Threshold, threshold: 50kgC
+    -   Carrying Capacity, K: 250kgC
+    -   Early Exponential Growth rate, r: 0.01
+    -   Linear Growth rate, g: 2kg/year
+    
+\newpage
+
+```{r}
+time = seq(from = 1, to = 300, by = 1)
+C = 10
+params = list(threshold = 50, r = 0.01, g = 2, K = 250)
+
+forest_growth_300 <- ode(y = C, 
+                         times = time, 
+                         func = forest_growth, 
+                         parms = params) %>% 
+  as.data.frame()
+
+colnames(forest_growth_300) = c("year", "forest_size")
+```
+
+## Graph the Results
+
+```{r}
+ggplot(forest_growth_300, aes(x = year, y = forest_size)) +
+  geom_point(color = "darkgreen", 
+             size = 0.5) +
+  labs(title = "Forest Growth over Time", 
+       x = "Year", 
+       y = "Forest Size") + 
+  theme_classic()
+```
+
+
+\newpage
+
+# 3. Run a Sobol Sensitivity Analysis
+
+Explore how the estimated maximum and mean forest size (e.g maximum and mean values of C over the 300 years) varies with the pre canopy closure growth rate (r) and post-canopy closure growth rate (g) and canopy closure threshold and carrying capacity(K)
+
+Assume that parameters are all normally distributed with means as given above and standard deviation of 10% of mean value. 
+
+```{r}
+C = 10 
+np = 100 
+threshold = rnorm(mean = 50, sd = 50 * 0.1, n = np)
+r = rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
+g = rnorm(mean = 2, sd = 2 * 0.1, n = np)
+K = rnorm(mean = 250, sd = 250 * 0.1, n = np)
+
+X1 = cbind.data.frame(threshold = threshold, r = r, g = g, K = K)
+
+np = 100 
+threshold = rnorm(mean = 50, sd = 50 * 0.1, n = np)
+r = rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
+g = rnorm(mean = 2, sd = 2 * 0.1, n = np)
+K = rnorm(mean = 250, sd = 250 * 0.1, n = np)
+
+X2 = cbind.data.frame(threshold = threshold, r = r, g = g, K = K)
+
+sens_forestSize <- sobolSalt(model = NULL, X1, X2, nboot = 300)
+
+sens_forestSize_df <- sens_forestSize$X %>% 
+  as.data.frame()
+sens_forestSize_df <- sens_forestSize_df %>% 
+  rename(threshold = V1, 
+         r = "V2", 
+         g = "V3", 
+         K = "V4")
+
+```
+
+### Read in the Compute Metrics Function for Sobol Analysis 
+
+```{r}
+source(here("R", "compute_metrics.R"))
+compute_metrics
+```
+
+### Create the wrapper function for running compute metrics and the ode solver 
+
+```{r}
+
+params = list(threshold = 50, r = 0.01, g = 2, K = 250)
+
+p_wrapper = function(threshold, r, g, K, Cinitial, times, func) {
+  params = list(threshold = threshold, r = r, g = g, carrying_capacity = K)
+  result = ode(y = Cinitial, times = time, func = func, parms = params, method = "daspk") 
+  colnames(result) = c("year", "forest_size")
+  # get metrics
+  metrics = compute_metrics(as.data.frame(result))
+  return(metrics)
+}
+
+allresults = sens_forestSize_df %>% 
+  pmap(p_wrapper, 
+       Cinitial = C, 
+       times = time,
+       func = forest_growth)
+
+allres = allresults %>% map_dfr(`[`,c("maxsize","maxyear"))
+
+```
+
+
+
+
+
+## Graph the results of the sensitivity analysis 
+
+as a box plot of maximum forest size and a plot of the two Sobol indices (S and T). 
