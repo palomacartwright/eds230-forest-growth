@@ -136,18 +136,37 @@ allresults = sens_forestSize_df %>%
        times = time,
        func = forest_growth)
 
-allres = allresults %>% map_dfr(`[`,c("maxsize","maxyear"))
+allres = allresults %>% 
+  map_dfr(`[`,c("maxsize","maxyear"))
 
+```
 
+## Graph the results of the sensitivity analysis 
+
+as a box plot of maximum forest size and a plot of the two Sobol indices (S and T). 
+```{r}
 # create boxplots
 tmp = allres %>% gather(key="metric", value="value")
 ggplot(tmp, aes(metric, value, col=metric))+geom_boxplot()
 ```
 
+```{r}
+# sobol can only handle one output at a time  - so we will need to do them separately
+sens_forest_maxSize = sensitivity::tell(sens_forestSize, allres$maxsize)
 
+# first-order indices (main effect without co-variance)
+sens_forest_maxSize$S
 
+# total sensitivity index -note that this partitions the output variance - so values sum to 1
+sens_forest_maxSize$T
 
+# create another one for max year
+sens_forest_maxYear = sensitivity::tell(sens_forestSize, allres$maxyear)
 
-## Graph the results of the sensitivity analysis 
+# first-order indices (main effect without co-variance)
+sens_forest_maxYear$S
 
-as a box plot of maximum forest size and a plot of the two Sobol indices (S and T). 
+# total sensitivity index -note that this partitions the output variance - so values sum to 1
+sens_forest_maxYear$T
+```
+
