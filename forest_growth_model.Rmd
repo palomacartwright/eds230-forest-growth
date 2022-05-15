@@ -137,7 +137,7 @@ allresults = sens_forestSize_df %>%
        func = forest_growth)
 
 allres = allresults %>% 
-  map_dfr(`[`,c("maxsize","maxyear"))
+  map_dfr(`[`,c("maxsize","meansize"))
 
 ```
 
@@ -161,12 +161,12 @@ sens_forest_maxSize$S
 sens_forest_maxSize$T
 
 # create another one for max year
-sens_forest_maxYear = sensitivity::tell(sens_forestSize, allres$maxyear)
+sens_forest_meanSize = sensitivity::tell(sens_forestSize, allres$meansize)
 
 # first-order indices (main effect without co-variance)
-sens_forest_maxYear$S
+sens_forest_meanSize$S
 
 # total sensitivity index -note that this partitions the output variance - so values sum to 1
-sens_forest_maxYear$T
+sens_forest_meanSize$T
 ```
 

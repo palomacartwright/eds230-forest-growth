@@ -9,7 +9,6 @@
 #' @examples
 compute_metrics <- function(result) {
   maxsize = max(result$forest_size)
-  idx = which.max(result$forest_size)
-  maxyear = result$year[idx]
-  return(list(maxsize = maxsize, maxyear = maxyear))
+  meansize = mean(result$forest_size)
+  return(list(maxsize = maxsize, meansize = meansize))
 }
