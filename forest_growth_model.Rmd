@@ -72,7 +72,6 @@ ggplot(forest_growth_300, aes(x = year, y = forest_size)) +
   theme_classic()
 ```
 
-
 \newpage
 
 # 3. Run a Sobol Sensitivity Analysis
@@ -88,7 +87,6 @@ threshold = rnorm(mean = 50, sd = 50 * 0.1, n = np)
 r = rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
 g = rnorm(mean = 2, sd = 2 * 0.1, n = np)
 K = rnorm(mean = 250, sd = 250 * 0.1, n = np)
-
 X1 = cbind.data.frame(threshold = threshold, r = r, g = g, K = K)
 
 np = 100 
@@ -96,7 +94,6 @@ threshold = rnorm(mean = 50, sd = 50 * 0.1, n = np)
 r = rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
 g = rnorm(mean = 2, sd = 2 * 0.1, n = np)
 K = rnorm(mean = 250, sd = 250 * 0.1, n = np)
-
 X2 = cbind.data.frame(threshold = threshold, r = r, g = g, K = K)
 
 sens_forestSize <- sobolSalt(model = NULL, X1, X2, nboot = 300)
@@ -141,6 +138,10 @@ allresults = sens_forestSize_df %>%
 
 allres = allresults %>% map_dfr(`[`,c("maxsize","maxyear"))
 
+
+# create boxplots
+tmp = allres %>% gather(key="metric", value="value")
+ggplot(tmp, aes(metric, value, col=metric))+geom_boxplot()
 ```
 
 

@@ -1,7 +1,7 @@
 
 #' Compute Metrics Function
 #'
-#' @param result 
+#' @param result results from the ode solver for the forest_growth 
 #'
 #' @return max and min values of C
 #' @export
