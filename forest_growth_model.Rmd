@@ -147,7 +147,9 @@ as a box plot of maximum forest size and a plot of the two Sobol indices (S and 
 ```{r}
 # create boxplots
 tmp = allres %>% gather(key="metric", value="value")
-ggplot(tmp, aes(metric, value, col=metric))+geom_boxplot()
+ggplot(tmp, aes(metric, value, col=metric)) +
+  geom_boxplot() +
+  theme_classic()
 ```
 
 ```{r}
