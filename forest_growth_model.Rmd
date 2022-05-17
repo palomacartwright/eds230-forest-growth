@@ -159,7 +159,7 @@ sens_forest_maxSize = sensitivity::tell(sens_forestSize, allres$maxsize)
 # first-order indices (main effect without co-variance)
 sens_forest_maxSize$S
 
-# total sensitivity index -note that this partitions the output variance - so values sum to 1
+# total sensitivity index - note that this partitions the output variance - so values sum to 1
 sens_forest_maxSize$T
 
 # create another one for max year
