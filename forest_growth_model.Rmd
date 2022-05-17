@@ -16,6 +16,7 @@ library(sensitivity)
 library(tidyverse)
 library(deSolve)
 library(here)
+library(patchwork)
 ```
 
 Consider the following model of forest growth (where forest size in measured in units of carbon (C))
@@ -47,9 +48,12 @@ forest_growth
 \newpage
 
 ```{r}
-time = seq(from = 1, to = 300, by = 1)
-C = 10
-params = list(threshold = 50, r = 0.01, g = 2, K = 250)
+time = seq(from = 1, to = 300, by = 1) # 300 years
+C = 10 # forest size
+params = list(threshold = 50,  # canopy closure
+              r = 0.01, # exponential growth rate
+              g = 2, # linear growth rate
+              K = 250)
 
 forest_growth_300 <- ode(y = C, 
                          times = time, 
@@ -69,7 +73,9 @@ ggplot(forest_growth_300, aes(x = year, y = forest_size)) +
   labs(title = "Forest Growth over Time", 
        x = "Year", 
        y = "Forest Size") + 
-  theme_classic()
+  theme_classic() +
+  scale_x_continuous(breaks = seq(0, 300, by = 25)) +
+  scale_y_continuous(breaks = seq(0, 200, by = 25))
 ```
 
 \newpage
@@ -81,20 +87,34 @@ Explore how the estimated maximum and mean forest size (e.g maximum and mean val
 Assume that parameters are all normally distributed with means as given above and standard deviation of 10% of mean value. 
 
 ```{r}
-C = 10 
-np = 100 
-threshold = rnorm(mean = 50, sd = 50 * 0.1, n = np)
-r = rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
-g = rnorm(mean = 2, sd = 2 * 0.1, n = np)
-K = rnorm(mean = 250, sd = 250 * 0.1, n = np)
-X1 = cbind.data.frame(threshold = threshold, r = r, g = g, K = K)
+# conditions
+threshold = 50  # canopy closure
+r = 0.01 # exponential growth rate
+g = 2 # linear growth rate
+K = 250
+
+C = 10 # forest size
+np = 100 # number of samples
+
+threshold = rnorm(mean = threshold, sd = threshold * 0.1, n = np)
+r = rnorm(mean = r, sd = r * 0.1, n = np)
+g = rnorm(mean = g, sd = g * 0.1, n = np)
+K = rnorm(mean = K, sd = K * 0.1, n = np)
+
+X1 = cbind.data.frame(threshold = threshold, 
+                      r = r, 
+                      g = g, 
+                      K = K)
 
 np = 100 
-threshold = rnorm(mean = 50, sd = 50 * 0.1, n = np)
-r = rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
-g = rnorm(mean = 2, sd = 2 * 0.1, n = np)
-K = rnorm(mean = 250, sd = 250 * 0.1, n = np)
-X2 = cbind.data.frame(threshold = threshold, r = r, g = g, K = K)
+threshold = rnorm(mean = threshold, sd = threshold * 0.1, n = np)
+r = rnorm(mean = r, sd = r * 0.1, n = np)
+g = rnorm(mean = g, sd = g * 0.1, n = np)
+K = rnorm(mean = K, sd = K * 0.1, n = np)
+X2 = cbind.data.frame(threshold = threshold, 
+                      r = r, 
+                      g = g, 
+                      K = K)
 
 sens_forestSize <- sobolSalt(model = NULL, X1, X2, nboot = 300)
 
@@ -105,6 +125,8 @@ sens_forestSize_df <- sens_forestSize_df %>%
          r = "V2", 
          g = "V3", 
          K = "V4")
+
+head(sens_forestSize_df)
 
 ```
 
@@ -119,11 +141,16 @@ compute_metrics
 
 ```{r}
 
-params = list(threshold = 50, r = 0.01, g = 2, K = 250)
-
 p_wrapper = function(threshold, r, g, K, Cinitial, times, func) {
-  params = list(threshold = threshold, r = r, g = g, carrying_capacity = K)
-  result = ode(y = Cinitial, times = time, func = func, parms = params, method = "daspk") 
+  params = list(threshold = threshold, 
+                r = r, 
+                g = g, 
+                K = K)
+  result = ode(y = Cinitial, 
+               times = time, 
+               func = func, 
+               parms = params, 
+               method = "daspk") 
   colnames(result) = c("year", "forest_size")
   # get metrics
   metrics = compute_metrics(as.data.frame(result))
@@ -152,23 +179,89 @@ ggplot(tmp, aes(metric, value, col=metric)) +
   theme_classic()
 ```
 
+
 ```{r}
-# sobol can only handle one output at a time  - so we will need to do them separately
+# sobol can only handle one output at a time  - so we will need to do them separately, let's start with max size
 sens_forest_maxSize = sensitivity::tell(sens_forestSize, allres$maxsize)
 
 # first-order indices (main effect without co-variance)
-sens_forest_maxSize$S
+max_S <- as.data.frame(sens_forest_maxSize$S) %>% # make it a dataframe
+  rowid_to_column(var = "parameter") # make rowids into parameters so graphing is easier
+
+# replace rowids with variables names that matches order input above
+max_S[1,1] <- "threshold"
+max_S[2,1] <- "r"
+max_S[3,1] <- "g"
+max_S[4,1] <- "K"
 
 # total sensitivity index - note that this partitions the output variance - so values sum to 1
-sens_forest_maxSize$T
+max_T <- as.data.frame(sens_forest_maxSize$T) %>% # make it a dataframe
+  rowid_to_column(var = "parameter") # make rowids into parameters so graphing is easier
 
-# create another one for max year
+# replace rowids with variables names that matches order input above
+max_T[1,1] <- "threshold"
+max_T[2,1] <- "r"
+max_T[3,1] <- "g"
+max_T[4,1] <- "K"
+
+```
+
+
+```{r}
+# create another one for mean size
 sens_forest_meanSize = sensitivity::tell(sens_forestSize, allres$meansize)
 
 # first-order indices (main effect without co-variance)
-sens_forest_meanSize$S
+mean_S <- as.data.frame(sens_forest_meanSize$S) %>% # make it a dataframe
+  rowid_to_column(var = "parameter") # make rowids into parameters so graphing is easier
 
-# total sensitivity index -note that this partitions the output variance - so values sum to 1
-sens_forest_meanSize$T
+# replace rowids with variables names that matches order input above
+mean_S[1,1] <- "threshold"
+mean_S[2,1] <- "r"
+mean_S[3,1] <- "g"
+mean_S[4,1] <- "K"
+
+# total sensitivity index - note that this partitions the output variance - so values sum to 1
+mean_T <- as.data.frame(sens_forest_meanSize$T) %>% # make it a dataframe
+  rowid_to_column(var = "parameter") # make rowids into parameters so graphing is easier
+
+# replace rowids with variables names that matches order input above
+mean_T[1,1] <- "threshold"
+mean_T[2,1] <- "r"
+mean_T[3,1] <- "g"
+mean_T[4,1] <- "K"
+
+```
+
+
+```{r}
+# create S and T plots
+max_T_plot <- ggplot(max_T, aes(x = original, y = parameter)) +
+  geom_col(fill = "#0066cc") +
+  theme_classic() +
+  labs(title = "Max Total Sensitivity Index",
+       x = "Sobol Score",
+       y = "Parameter")
+max_S_plot <- ggplot(max_S, aes(x = original, y = parameter)) +
+  geom_col(fill = "#ffcc00") +
+  theme_classic() +
+  labs(title = "Max First Order Sensitivity Index",
+       x = "Sobol Score",
+       y = "Parameter")
+mean_T_plot <- ggplot(mean_T, aes(x = original, y = parameter)) +
+  geom_col(fill = "#0066cc") +
+  theme_classic() +
+  labs(title = "Mean Total Sensitivity Index",
+       x = "Sobol Score",
+       y = "Parameter")
+mean_S_plot <- ggplot(mean_S, aes(x = original, y = parameter)) +
+  geom_col(fill = "#ffcc00") +
+  theme_classic() +
+  labs(title = "Mean First Order Sensitivity Index",
+       x = "Sobol Score",
+       y = "Parameter")
+# patchwork plots
+max_T_plot + max_S_plot
+mean_T_plot + mean_S_plot
 ```
 
